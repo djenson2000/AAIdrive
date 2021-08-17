@@ -3,12 +3,10 @@ package me.hufman.androidautoidrive.phoneui
 import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
+import android.os.PowerManager
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import androidx.lifecycle.LiveData
-import com.nhaarman.mockito_kotlin.doReturn
-import com.nhaarman.mockito_kotlin.mock
-import com.nhaarman.mockito_kotlin.verify
-import com.nhaarman.mockito_kotlin.whenever
+import com.nhaarman.mockito_kotlin.*
 import com.spotify.android.appremote.api.error.*
 import me.hufman.androidautoidrive.MutableObservable
 import me.hufman.androidautoidrive.R
@@ -34,9 +32,10 @@ class PermissionsModelTest {
 	val notificationListenerState = mock<LiveData<Boolean>>()
 	val state = mock<PermissionsState>()
 	val activityManager = mock<ActivityManager>()
+	val powerManager = mock<PowerManager>()
 	val spotifyConnector = mock<SpotifyAppController.Connector>()
 	val spotifyAuthStateManager = mock<SpotifyAuthStateManager>()
-	val viewModel = PermissionsModel(notificationListenerState, state, activityManager, spotifyConnector, spotifyAuthStateManager)
+	val viewModel = PermissionsModel(notificationListenerState, state, activityManager, powerManager, spotifyConnector, spotifyAuthStateManager)
 
 	/* A helper to set a constant value
 	* From https://proandroiddev.com/build-version-in-unit-testing-4e963940dae7
@@ -99,6 +98,24 @@ class PermissionsModelTest {
 			whenever(activityManager.isBackgroundRestricted) doReturn it
 			viewModel.update()
 			assertEquals(!it, viewModel.hasBackgroundPermission.value)
+		}
+	}
+
+	@Test
+	fun testBatteryPermission() {
+		// old phone
+		setFinalStatic(Build.VERSION::class.java.getField("SDK_INT"), 16)
+		listOf(true, false).forEach {
+			whenever(powerManager.isIgnoringBatteryOptimizations(any())) doReturn it
+			viewModel.update()
+			assertEquals(true, viewModel.hasBatteryPermission.value)
+		}
+		// new phone
+		setFinalStatic(Build.VERSION::class.java.getField("SDK_INT"), 28)
+		listOf(true, false).forEach {
+			whenever(powerManager.isIgnoringBatteryOptimizations(any())) doReturn it
+			viewModel.update()
+			assertEquals(it, viewModel.hasBatteryPermission.value)
 		}
 	}
 
@@ -232,7 +249,7 @@ class PermissionsModelTest {
 		whenever(spotifyConnector.isSpotifyInstalled()) doReturn true
 		whenever(spotifyConnector.hasSupport()) doReturn true
 		whenever(spotifyConnector.previousControlSuccess()) doReturn false
-		val viewModel = PermissionsModel(notificationListenerState, state, activityManager, spotifyConnector, mock())
+		val viewModel = PermissionsModel(notificationListenerState, state, activityManager, powerManager, spotifyConnector, mock())
 		assertEquals(false, viewModel.hasSpotifyControlPermission.value)
 	}
 
@@ -241,7 +258,7 @@ class PermissionsModelTest {
 		whenever(spotifyConnector.isSpotifyInstalled()) doReturn true
 		whenever(spotifyConnector.hasSupport()) doReturn true
 		whenever(spotifyConnector.previousControlSuccess()) doReturn true
-		val viewModel = PermissionsModel(notificationListenerState, state, activityManager, spotifyConnector, mock())
+		val viewModel = PermissionsModel(notificationListenerState, state, activityManager, powerManager, spotifyConnector, mock())
 		assertEquals(true, viewModel.hasSpotifyControlPermission.value)
 	}
 

@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.ActivityManager
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.PowerManager
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.*
@@ -16,6 +17,7 @@ import me.hufman.androidautoidrive.notifications.NotificationListenerServiceImpl
 class PermissionsModel(private val notificationListenerState: LiveData<Boolean>,
                        private val permissionsState: PermissionsState,
                        private val activityManager: ActivityManager,
+                       private val powerManager: PowerManager,
                        private val spotifyConnector: SpotifyAppController.Connector,
                        private val spotifyAuthStateManager: SpotifyAuthStateManager): ViewModel(), Observer<Boolean> {
 	class Factory(val appContext: Context): ViewModelProvider.Factory {
@@ -24,6 +26,7 @@ class PermissionsModel(private val notificationListenerState: LiveData<Boolean>,
 			val viewModel = PermissionsModel(NotificationListenerServiceImpl.serviceState,
 					PermissionsState(appContext),
 					appContext.getSystemService(ActivityManager::class.java),
+					appContext.getSystemService(PowerManager::class.java),
 					SpotifyAppController.Connector(appContext, false),
 					SpotifyAuthStateManager.getInstance(MutableAppSettingsReceiver(appContext)))
 			viewModel.subscribe()
@@ -39,6 +42,8 @@ class PermissionsModel(private val notificationListenerState: LiveData<Boolean>,
 	val hasLocationPermission: LiveData<Boolean> = _hasLocationPermission
 	private val _hasBackgroundPermission = MutableLiveData(false)
 	val hasBackgroundPermission: LiveData<Boolean> = _hasBackgroundPermission
+	private val _hasBatteryPermission = MutableLiveData(false)
+	val hasBatteryPermission: LiveData<Boolean> = _hasBatteryPermission
 
 	private val _hasSpotify = MutableLiveData(false)
 	val hasSpotify: LiveData<Boolean> = _hasSpotify
@@ -54,8 +59,13 @@ class PermissionsModel(private val notificationListenerState: LiveData<Boolean>,
 		_hasNotificationPermission.value = notificationListenerState.value == true && permissionsState.hasNotificationPermission
 		_hasSmsPermission.value = permissionsState.hasSmsPermission
 		_hasLocationPermission.value = permissionsState.hasLocationPermission
-		_hasBackgroundPermission.value =  if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+		_hasBackgroundPermission.value = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
 			!activityManager.isBackgroundRestricted
+		} else {
+			true        // old phones just assume true
+		}
+		_hasBatteryPermission.value = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+			powerManager.isIgnoringBatteryOptimizations("me.hufman.androidautoidrive")
 		} else {
 			true        // old phones just assume true
 		}

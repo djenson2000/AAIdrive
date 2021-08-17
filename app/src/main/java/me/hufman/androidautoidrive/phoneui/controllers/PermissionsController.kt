@@ -59,6 +59,20 @@ class PermissionsController(val activity: Activity) {
 		}
 	}
 
+	fun openApplicationBattery(packageName: String) {
+		run {
+			val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+			intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+			intent.data = Uri.parse("package:$packageName")
+			if (tryOpenActivity(intent)) return
+		}
+		run {
+			val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+			intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+			if (tryOpenActivity(intent)) return
+		}
+	}
+
 	fun promptNotification() {
 		val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
 				.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
